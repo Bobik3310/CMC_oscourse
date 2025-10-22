@@ -39,7 +39,7 @@ save_trapframe_trap:
 
 save_trapframe_syscall:
     # LAB 4: CLI-s
-    cli
+    # cli
 
     popq save_trapframe_ret(%rip)
     popq saved_rip(%rip)
@@ -71,6 +71,10 @@ save_trapframe:
 .globl sys_yield
 .type  sys_yield, @function
 sys_yield:
+	
+    # LAB 4: CLI-s
+    cli
+
     call save_trapframe_syscall
     call csys_yield
     jmp .

@@ -523,12 +523,12 @@ env_run(struct Env *env) {
 
     if (env == curenv)
     {
-        cprintf("New env is the same as the previous one (`env == curenv`)\n");
+        // cprintf("MINE: New env is the same as the previous one (`env == curenv`)\n");
     }
 
     if (curenv == NULL)
     {
-        cprintf("First call to env_run\n");
+        // cprintf("MINE: First call to env_run\n");
     }
     else
     {
