@@ -427,7 +427,11 @@ env_destroy(struct Env *env) {
     }
 
     env_free(env);
-    sched_yield();
+    // sched_yield();
+	if (curenv == env)
+	{
+		sched_yield();
+	}
 }
 
 #ifdef CONFIG_KSPACE
