@@ -211,16 +211,18 @@ bind_functions(struct Env *env, uint8_t *binary, size_t size, uintptr_t image_st
 
     struct Elf *elf_image = (struct Elf *) binary;
 
+    struct Secthdr *sector_header = (struct Secthdr *) (binary + elf_image->e_shoff);
+
     if (
         (elf_image->e_shoff > size) ||
-        (elf_image->e_shoff + sizeof(struct Secthdr) * elf_image->e_shnum > size)
+        (elf_image->e_shoff + sizeof(*sector_header) * elf_image->e_shnum > size)
     ) {
         cprintf("bind_functions: ELF file has section headers located outside of file\n");
 
         return -E_INVALID_EXE;
     }
 
-    if (elf_image->e_shoff % _Alignof(struct Secthdr)) { // use _Alignof(*)
+    if (elf_image->e_shoff % _Alignof(*sector_header)) {
         cprintf("bind_functions: section header offset is not aligned\n");
 
         return -E_INVALID_EXE;
@@ -231,8 +233,6 @@ bind_functions(struct Env *env, uint8_t *binary, size_t size, uintptr_t image_st
 
         return -E_INVALID_EXE;
     }
-
-    struct Secthdr *sector_header = (struct Secthdr *) (binary + elf_image->e_shoff);
 
     if (
         (sector_header[elf_image->e_shstrndx].sh_offset > size) ||
@@ -257,7 +257,7 @@ bind_functions(struct Env *env, uint8_t *binary, size_t size, uintptr_t image_st
 
         if (
             (sector_header[i].sh_type == ELF_SHT_STRTAB) &&
-            !strncmp(&string_table_header_address[sector_header[i].sh_name], ".strtab", 7)
+            (strncmp(&string_table_header_address[sector_header[i].sh_name], ".strtab", 7) == 0)
         ) {
             string_table_index = i;
         }
@@ -270,7 +270,9 @@ bind_functions(struct Env *env, uint8_t *binary, size_t size, uintptr_t image_st
         }
     }
 
-    if (sector_header[string_table_index].sh_offset % _Alignof(struct Elf64_Sym)) { // use _Alignof(*)
+    struct Elf64_Sym *symbol_table = (struct Elf64_Sym *) (binary + sector_header[symbol_table_index].sh_offset);
+
+    if (sector_header[string_table_index].sh_offset % _Alignof(*symbol_table)) {
         cprintf("bind_functions: program header offset is not aligned\n");
 
         return -E_INVALID_EXE;
@@ -278,19 +280,17 @@ bind_functions(struct Env *env, uint8_t *binary, size_t size, uintptr_t image_st
 
     if (
         (string_table_index == (uint16_t) -1) ||
-        strncmp(&string_table_header_address[sector_header[string_table_index].sh_name], ".strtab", 7)
+        (strncmp(&string_table_header_address[sector_header[string_table_index].sh_name], ".strtab", 7) != 0)
     ) {
         panic("bind_functions: can't find strt\n");
     }
 
     if (
         (symbol_table_index == (uint16_t) -1) ||
-        strncmp(&string_table_header_address[sector_header[symbol_table_index].sh_name], ".symtab", 7)
+        (strncmp(&string_table_header_address[sector_header[symbol_table_index].sh_name], ".symtab", 7) != 0)
     ) {
         panic("bind_functions: can't find symtab\n");
     }
-
-    struct Elf64_Sym *symbol_table = (struct Elf64_Sym *) (binary + sector_header[symbol_table_index].sh_offset);
 
     for (size_t i = 0; i < sector_header[symbol_table_index].sh_entsize; ++i) {
         if (
