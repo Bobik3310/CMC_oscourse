@@ -222,7 +222,13 @@ bind_functions(struct Env *env, uint8_t *binary, size_t size, uintptr_t image_st
         return -E_INVALID_EXE;
     }
 
+    // cprintf("ptr: %Lu vs type: %Lu\n", _Alignof(*sector_header), _Alignof(struct Secthdr));
+
+#ifdef __clang__ // kern/env.c:225:30: warning: '_Alignof' applied to an expression is a GNU extension [-Wgnu-alignof-expression]
+    if (elf_image->e_shoff % _Alignof(struct Secthdr) != 0) {
+#else
     if (elf_image->e_shoff % _Alignof(*sector_header) != 0) {
+#endif
         cprintf("bind_functions: section header offset is not aligned\n");
 
         return -E_INVALID_EXE;
@@ -270,11 +276,24 @@ bind_functions(struct Env *env, uint8_t *binary, size_t size, uintptr_t image_st
 
     struct Elf64_Sym *symbol_table = (struct Elf64_Sym *) (binary + sector_header[symbol_table_index].sh_offset);
 
-    if (sector_header[string_table_index].sh_offset % _Alignof(*symbol_table) != 0) {
-        cprintf("bind_functions: program header offset is not aligned\n");
+    // cprintf("sh:  %lu\n", sector_header[string_table_index].sh_offset);
+    // cprintf("ptr: %lu vs type: %lu\n", _Alignof(*symbol_table), _Alignof(struct Elf64_Sym));
+    // LLVM
+    // sh:  16743
+    // ptr: 8 vs type: 8
 
-        return -E_INVALID_EXE;
-    }
+    // GCC
+    // sh:  17280
+    // ptr: 8 vs type: 8
+// #ifdef __clang__ // kern/env.c:273:55: warning: '_Alignof' applied to an expression is a GNU extension [-Wgnu-alignof-expression]
+//     if (sector_header[string_table_index].sh_offset % _Alignof(struct Elf64_Sym) != 0) {
+// #else
+//     if (sector_header[string_table_index].sh_offset % _Alignof(*symbol_table) != 0) {
+// #endif
+//         cprintf("bind_functions: program header offset is not aligned\n");
+
+//         return -E_INVALID_EXE;
+//     }
 
     if (
         (string_table_index == (uint16_t) -1) ||
@@ -421,7 +440,11 @@ load_icode(struct Env *env, uint8_t *binary, size_t size) {
         return -E_INVALID_EXE;
     }
 
+#ifdef __clang__ // kern/env.c:424:30: warning: '_Alignof' applied to an expression is a GNU extension [-Wgnu-alignof-expression]
+    if (elf_image->e_phoff % _Alignof(struct Proghdr) != 0) {
+#else
     if (elf_image->e_phoff % _Alignof(*program_headers) != 0) {
+#endif
         cprintf("load_icode: program header offset is not aligned\n");
 
         return -E_INVALID_EXE;
