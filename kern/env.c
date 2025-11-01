@@ -277,6 +277,11 @@ bind_functions(struct Env *env, uint8_t *binary, size_t size, uintptr_t image_st
     struct Elf64_Sym *symbol_table = (struct Elf64_Sym *) (binary + sector_header[symbol_table_index].sh_offset);
 
     // cprintf("sh:  %lu\n", sector_header[string_table_index].sh_offset);
+    // cprintf("sh:  %lu (required align: %lu)\n",
+    //     (unsigned long) sector_header[string_table_index].sh_offset,
+    //     (unsigned long) sector_header[string_table_index].sh_addralign);
+    // sh_addralign == 1 => we do not need to align it
+
     // cprintf("ptr: %lu vs type: %lu\n", _Alignof(*symbol_table), _Alignof(struct Elf64_Sym));
     // LLVM
     // sh:  16743
