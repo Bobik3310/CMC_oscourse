@@ -222,7 +222,7 @@ bind_functions(struct Env *env, uint8_t *binary, size_t size, uintptr_t image_st
         return -E_INVALID_EXE;
     }
 
-    if (elf_image->e_shoff % _Alignof(*sector_header)) {
+    if (elf_image->e_shoff % _Alignof(*sector_header) != 0) {
         cprintf("bind_functions: section header offset is not aligned\n");
 
         return -E_INVALID_EXE;
@@ -249,9 +249,7 @@ bind_functions(struct Env *env, uint8_t *binary, size_t size, uintptr_t image_st
     uint16_t string_table_index = UINT16_MAX;
 
     for (uint16_t i = 0; i < elf_image->e_shnum; ++i) {
-        if (
-            (sector_header[i].sh_type == ELF_SHT_SYMTAB)
-        ) {
+        if (sector_header[i].sh_type == ELF_SHT_SYMTAB) {
             symbol_table_index = i;
         }
 
@@ -272,7 +270,7 @@ bind_functions(struct Env *env, uint8_t *binary, size_t size, uintptr_t image_st
 
     struct Elf64_Sym *symbol_table = (struct Elf64_Sym *) (binary + sector_header[symbol_table_index].sh_offset);
 
-    if (sector_header[string_table_index].sh_offset % _Alignof(*symbol_table)) {
+    if (sector_header[string_table_index].sh_offset % _Alignof(*symbol_table) != 0) {
         cprintf("bind_functions: program header offset is not aligned\n");
 
         return -E_INVALID_EXE;
@@ -297,24 +295,27 @@ bind_functions(struct Env *env, uint8_t *binary, size_t size, uintptr_t image_st
             (ELF64_ST_BIND(symbol_table[i].st_info) == STB_GLOBAL) &&
             (ELF64_ST_TYPE(symbol_table[i].st_info) == STT_OBJECT)
         ) {
-            // if (
-            //     (image_start > symbol_table[i].st_value) ||
-            //     (symbol_table[i].st_value > image_end)
-            // ) {
-            //     cprintf("bind_functions: symbol %s in symtab is located outside of image\n", &symbol_table[symbol_table[i].st_name]);
+            if (
+                (image_start > symbol_table[i].st_value) ||
+                (symbol_table[i].st_value > image_end)
+            ) {
+                cprintf(
+                    "bind_functions: symbol %s in symtab is located outside of image\n",
+                    &string_table_header_address[symbol_table[i].st_name]
+                );
 
-            //     return -E_INVALID_EXE;
-            // }
+                return -E_INVALID_EXE;
+            }
 
-            uintptr_t resolved_address = find_function((char *) (binary + sector_header[string_table_index].sh_offset + symbol_table[i].st_name));
-            // cprintf("%lx\n", symbol_table[i].st_value);
-            // cprintf("%lx-%lx\n", image_start, image_end);
-
+            uintptr_t resolved_address = find_function(
+                (char *)
+                (
+                    binary +
+                    sector_header[string_table_index].sh_offset +
+                    symbol_table[i].st_name
+                )
+            );
             if (resolved_address != 0) {
-                // if ((uintptr_t) symbol_table[i].st_value > image_end || (uintptr_t) symbol_table[i].st_value < image_start) {
-                //     panic("bind_functions: symbol is out of binary address range\n");
-                // }
-
                 uintptr_t *function_address = (uintptr_t *)  symbol_table[i].st_value;
                 memcpy((void *) function_address, (void *) &resolved_address, sizeof(resolved_address));
             }
@@ -367,6 +368,7 @@ bind_functions(struct Env *env, uint8_t *binary, size_t size, uintptr_t image_st
 static int
 load_icode(struct Env *env, uint8_t *binary, size_t size) {
     // LAB 3: Your code here
+
     struct Elf *elf_image = (struct Elf *) binary;
 
     if (elf_image->e_magic != ELF_MAGIC)
@@ -376,46 +378,57 @@ load_icode(struct Env *env, uint8_t *binary, size_t size) {
         return -E_INVALID_EXE;
     }
 
-    if (elf_image->e_shentsize != sizeof(struct Secthdr)) {
-        cprintf("load_icode: file has sections of %u bytes instead of %u\n", elf_image->e_shentsize,
-            (uint32_t) sizeof(struct Secthdr));
+    const struct Secthdr * const sector_header = (const struct Secthdr * const) (binary + elf_image->e_shoff);
 
-        return -E_INVALID_EXE;
-    }
-
-    if (elf_image->e_shstrndx >= elf_image->e_shnum) {
-        cprintf("load_icode: file string section has invalid index %u out of %u entries\n", elf_image->e_shstrndx, 
-            elf_image->e_shnum);
-
-        return -E_INVALID_EXE;
-    }
-
-    if (elf_image->e_phentsize != sizeof(struct Proghdr)) {
+    if (elf_image->e_shentsize != sizeof(*sector_header)) {
         cprintf(
-            "load_icode: file has program headers of %u bytes instead of %u\n",
-            elf_image->e_phentsize, 
-            (uint32_t) sizeof(struct Proghdr)
+            "load_icode: file has sections of %u bytes instead of %u\n",
+            elf_image->e_shentsize,
+            (uint32_t) sizeof(*sector_header)
         );
 
         return -E_INVALID_EXE;
     }
 
-    if (elf_image->e_phoff >= size || sizeof(struct Proghdr) * elf_image->e_phnum >= size - elf_image->e_phoff) {
-        cprintf("load_icode: ELF file has program headers located outside of file\n");
-
-        return -E_INVALID_EXE;
-    }
-
-    if (elf_image->e_phoff % _Alignof(struct Proghdr)) {
-        cprintf("load_icode: program header offset is not aligned\n");
+    if (elf_image->e_shstrndx >= elf_image->e_shnum) {
+        cprintf(
+            "load_icode: file string section has invalid index %u out of %u entries\n",
+            elf_image->e_shstrndx, 
+            elf_image->e_shnum
+        );
 
         return -E_INVALID_EXE;
     }
 
     struct Proghdr *program_headers = (struct Proghdr *) ((uint64_t) binary + elf_image->e_phoff);
+
+    if (elf_image->e_phentsize != sizeof(*program_headers)) {
+        cprintf(
+            "load_icode: file has program headers of %u bytes instead of %u\n",
+            elf_image->e_phentsize, 
+            (uint32_t) sizeof(*program_headers)
+        );
+
+        return -E_INVALID_EXE;
+    }
+
+    if (
+        (elf_image->e_phoff >= size) ||
+        (sizeof(*program_headers) * elf_image->e_phnum >= size - elf_image->e_phoff)
+    ) {
+        cprintf("load_icode: ELF file has program headers located outside of file\n");
+
+        return -E_INVALID_EXE;
+    }
+
+    if (elf_image->e_phoff % _Alignof(*program_headers) != 0) {
+        cprintf("load_icode: program header offset is not aligned\n");
+
+        return -E_INVALID_EXE;
+    }
+
     uintptr_t image_start = (uintptr_t) 0;
     uintptr_t image_end   = (uintptr_t) 0;
-
     for (uint16_t i = 0; i < elf_image->e_phnum; ++i) {
         if (program_headers[i].p_type != ELF_PROG_LOAD) {
             continue;
