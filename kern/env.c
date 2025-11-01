@@ -210,34 +210,102 @@ bind_functions(struct Env *env, uint8_t *binary, size_t size, uintptr_t image_st
     /* NOTE: find_function from kdebug.c should be used */
 
     struct Elf *elf_image = (struct Elf *) binary;
+
+    if (
+        (elf_image->e_shoff > size) ||
+        (elf_image->e_shoff + sizeof(struct Secthdr) * elf_image->e_shnum > size)
+    ) {
+        cprintf("bind_functions: ELF file has section headers located outside of file\n");
+
+        return -E_INVALID_EXE;
+    }
+
+    if (elf_image->e_shoff % _Alignof(struct Secthdr)) { // use _Alignof(*)
+        cprintf("bind_functions: section header offset is not aligned\n");
+
+        return -E_INVALID_EXE;
+    }
+
+    if (elf_image->e_shstrndx >= elf_image->e_shnum) {
+        cprintf("bind_functions: invalid section headers strtab index\n");
+
+        return -E_INVALID_EXE;
+    }
+
     struct Secthdr *sector_header = (struct Secthdr *) (binary + elf_image->e_shoff);
+
+    if (
+        (sector_header[elf_image->e_shstrndx].sh_offset > size) ||
+        (sector_header[elf_image->e_shstrndx].sh_offset + sector_header[elf_image->e_shstrndx].sh_size > size)
+    ) {
+        cprintf("bind_functions: ELF file has section headers strtab located outside of file\n");
+
+        return -E_INVALID_EXE;
+    }
+
     char *string_table_header_address = (char *) (binary + sector_header[elf_image->e_shstrndx].sh_offset);
 
     uint16_t symbol_table_index = UINT16_MAX;
     uint16_t string_table_index = UINT16_MAX;
 
     for (uint16_t i = 0; i < elf_image->e_shnum; ++i) {
-        if (sector_header[i].sh_type == ELF_SHT_SYMTAB) {
+        if (
+            (sector_header[i].sh_type == ELF_SHT_SYMTAB)
+        ) {
             symbol_table_index = i;
         }
 
-        if (sector_header[i].sh_type == ELF_SHT_STRTAB && !strncmp(&string_table_header_address[sector_header[i].sh_name], ".strtab", 7)) {
+        if (
+            (sector_header[i].sh_type == ELF_SHT_STRTAB) &&
+            !strncmp(&string_table_header_address[sector_header[i].sh_name], ".strtab", 7)
+        ) {
             string_table_index = i;
+        }
+
+        if (
+            (sector_header[i].sh_offset >= size) ||
+            (sector_header[i].sh_offset + sector_header[i].sh_size >= size)
+        ) {
+            cprintf("bind_functions: section %u is located outside of file\n", i);
         }
     }
 
-    if (string_table_index == (uint16_t) -1 || strncmp(&string_table_header_address[sector_header[string_table_index].sh_name], ".strtab", 7)) {
+    if (sector_header[string_table_index].sh_offset % _Alignof(struct Elf64_Sym)) { // use _Alignof(*)
+        cprintf("bind_functions: program header offset is not aligned\n");
+
+        return -E_INVALID_EXE;
+    }
+
+    if (
+        (string_table_index == (uint16_t) -1) ||
+        strncmp(&string_table_header_address[sector_header[string_table_index].sh_name], ".strtab", 7)
+    ) {
         panic("bind_functions: can't find strt\n");
     }
 
-    if (symbol_table_index == (uint16_t) -1 || strncmp(&string_table_header_address[sector_header[symbol_table_index].sh_name], ".symtab", 7)) {
-        panic("bind_functions: can't find symbol_table\n");
+    if (
+        (symbol_table_index == (uint16_t) -1) ||
+        strncmp(&string_table_header_address[sector_header[symbol_table_index].sh_name], ".symtab", 7)
+    ) {
+        panic("bind_functions: can't find symtab\n");
     }
 
     struct Elf64_Sym *symbol_table = (struct Elf64_Sym *) (binary + sector_header[symbol_table_index].sh_offset);
 
     for (size_t i = 0; i < sector_header[symbol_table_index].sh_entsize; ++i) {
-        if (ELF64_ST_BIND(symbol_table[i].st_info) == STB_GLOBAL && ELF64_ST_TYPE(symbol_table[i].st_info) == STT_OBJECT) {
+        if (
+            (ELF64_ST_BIND(symbol_table[i].st_info) == STB_GLOBAL) &&
+            (ELF64_ST_TYPE(symbol_table[i].st_info) == STT_OBJECT)
+        ) {
+            // if (
+            //     (image_start > symbol_table[i].st_value) ||
+            //     (symbol_table[i].st_value > image_end)
+            // ) {
+            //     cprintf("bind_functions: symbol %s in symtab is located outside of image\n", &symbol_table[symbol_table[i].st_name]);
+
+            //     return -E_INVALID_EXE;
+            // }
+
             uintptr_t resolved_address = find_function((char *) (binary + sector_header[string_table_index].sh_offset + symbol_table[i].st_name));
             // cprintf("%lx\n", symbol_table[i].st_value);
             // cprintf("%lx-%lx\n", image_start, image_end);
@@ -323,16 +391,32 @@ load_icode(struct Env *env, uint8_t *binary, size_t size) {
     }
 
     if (elf_image->e_phentsize != sizeof(struct Proghdr)) {
-        cprintf("load_icode: file has program headers of %u bytes instead of %u\n", elf_image->e_phentsize, 
-            (uint32_t) sizeof(struct Proghdr));
+        cprintf(
+            "load_icode: file has program headers of %u bytes instead of %u\n",
+            elf_image->e_phentsize, 
+            (uint32_t) sizeof(struct Proghdr)
+        );
+
+        return -E_INVALID_EXE;
+    }
+
+    if (elf_image->e_phoff >= size || sizeof(struct Proghdr) * elf_image->e_phnum >= size - elf_image->e_phoff) {
+        cprintf("load_icode: ELF file has program headers located outside of file\n");
+
+        return -E_INVALID_EXE;
+    }
+
+    if (elf_image->e_phoff % _Alignof(struct Proghdr)) {
+        cprintf("load_icode: program header offset is not aligned\n");
 
         return -E_INVALID_EXE;
     }
 
     struct Proghdr *program_headers = (struct Proghdr *) ((uint64_t) binary + elf_image->e_phoff);
-    uintptr_t image_start = (uintptr_t) binary, image_end = (uintptr_t) binary + size;
+    uintptr_t image_start = (uintptr_t) 0;
+    uintptr_t image_end   = (uintptr_t) 0;
 
-    for (uint16_t i = 0; i < elf_image->e_phnum; i++) {
+    for (uint16_t i = 0; i < elf_image->e_phnum; ++i) {
         if (program_headers[i].p_type != ELF_PROG_LOAD) {
             continue;
         }
@@ -341,6 +425,38 @@ load_icode(struct Env *env, uint8_t *binary, size_t size) {
             cprintf("load_icode: section %u has %lu filesz with %lu memsz\n", i, program_headers[i].p_filesz, program_headers[i].p_memsz);
 
             return -E_INVALID_EXE;
+        }
+
+        if (
+            (program_headers[i].p_offset >= size) ||
+            (program_headers[i].p_offset + program_headers[i].p_filesz >= size)
+        ) {
+            cprintf("load_icode: section %u is located outside of file\n", i);
+
+            return -E_INVALID_EXE;
+        }
+
+        if (
+            (program_headers[i].p_va < UTEXT) ||
+            (program_headers[i].p_va + program_headers[i].p_memsz >= MAX_USER_ADDRESS)
+        ) {
+            cprintf("load_icode: section %u requires to be loaded outside of user space\n", i);
+
+            return -E_INVALID_EXE;
+        }
+
+        if (
+            (image_start == (uintptr_t) 0) ||
+            (program_headers[i].p_va < image_start)
+        ) {
+            image_start = program_headers[i].p_va;
+        }
+
+        if (
+            (image_end == (uintptr_t) 0) ||
+            (program_headers[i].p_va + program_headers[i].p_memsz > image_end)
+        ) {
+            image_end = program_headers[i].p_va + program_headers[i].p_memsz;
         }
 
         memcpy(
@@ -355,8 +471,26 @@ load_icode(struct Env *env, uint8_t *binary, size_t size) {
         );
     }
 
+    if ((image_start == 0) || (image_end == 0)) {
+        cprintf("load_icode: ELF file has no program headers\n");
+
+        return -E_INVALID_EXE;
+    }
+
+    if ((elf_image->e_entry < image_start) || (elf_image->e_entry >= image_end)) {
+        cprintf("load_icode: ELF file entry point is outside of loaded image\n");
+
+        return -E_INVALID_EXE;
+    }
+
     env->env_tf.tf_rip = elf_image->e_entry;
-    bind_functions(env, binary, size, image_start, image_end);
+
+    int status = bind_functions(env, binary, size, image_start, image_end);
+    if (status != 0) {
+        cprintf("load_icode: bind_function call finished with error: %i\n", status);
+
+        return status;
+    }
 
     // COMMENT IF NOT WORKING
     env->binary = binary;
