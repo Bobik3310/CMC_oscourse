@@ -87,6 +87,7 @@ rtc_timer_init(void) {
     // Page 14/29
     // RS3 | RS2 | RS1 | RS0 | Frequency | Units | Period | Units
     // 1   | 1   | 1   | 1   | 2         | Hz    | 500    | ms
+	// ToDo: use macros from kclock.h
     uint8_t register_a = cmos_read8(RTC_AREG);
     const uint8_t RS_2_HZ_VALUE = 0b1111u;
     register_a |= RS_2_HZ_VALUE;

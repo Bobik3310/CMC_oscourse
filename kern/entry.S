@@ -18,7 +18,7 @@ entry:
     movq %rcx, uefi_lp(%rip)
 
     # LAB 4: CLI-s
-    cli
+    # cli
 
     # Invoke C code
     call i386_init
