@@ -187,6 +187,8 @@ acpi_find_table(const char *sign) {
                 panic("acpi_find_table: invalid %s header checksum\n", sign);
             }
 
+			// ToDo: remap here for large tables. It is better
+
             return hdr;
         }
     }
@@ -337,20 +339,22 @@ void
 hpet_enable_interrupts_tim0(void) {
     // LAB 5: Your code here
 
-    nmi_disable();
+    // nmi_disable();
+	// Only needed for RTC
     {
         hpetReg->GEN_CONF |= HPET_LEG_RT_CNF; // turn on legacy mode
 
-        hpetReg->TIM0_CONF |= HPET_TN_VAL_SET_CNF; // reset comparator value
-
-        // comment if not working
+        hpetReg->TIM0_CONF = 0; // clear out
         hpetReg->TIM0_CONF |= HPET_TN_TYPE_CNF; // enable periodic
 
-        hpetReg->TIM0_CONF |= HPET_TN_INT_ENB_CNF; // turn on that timer
+        hpetReg->TIM0_CONF |= HPET_TN_VAL_SET_CNF; // reset comparator value
 
-        hpetReg->TIM0_COMP = hpetFreq / 100000;
+        hpetReg->TIM0_COMP = hpet_get_main_cnt() + hpetFreq / 100000; // current comparator value
+        hpetReg->TIM0_COMP = hpetFreq / 100000; // set the desired one
+
+        hpetReg->TIM0_CONF |= HPET_TN_INT_ENB_CNF; // turn on that timer
     }
-    nmi_enable();
+    // nmi_enable();
 
     pic_irq_unmask(IRQ_TIMER);
 }
@@ -359,20 +363,21 @@ void
 hpet_enable_interrupts_tim1(void) {
     // LAB 5: Your code here
 
-    nmi_disable();
+    // nmi_disable();
     {
         hpetReg->GEN_CONF |= HPET_LEG_RT_CNF; // turn on legacy mode
 
-        hpetReg->TIM1_CONF |= HPET_TN_VAL_SET_CNF; // reset comparator value
-
-        // comment if not working
+        hpetReg->TIM1_CONF = 0; // clear out
         hpetReg->TIM1_CONF |= HPET_TN_TYPE_CNF; // enable periodic
 
-        hpetReg->TIM1_CONF |= HPET_TN_INT_ENB_CNF; // turn on that timer
+		hpetReg->TIM1_CONF |= HPET_TN_VAL_SET_CNF; // reset comparator value
 
-        hpetReg->TIM1_COMP = hpetFreq * 3 / 2;
+        hpetReg->TIM1_COMP = hpet_get_main_cnt() + hpetFreq * 3 / 2; // current comparator value
+        hpetReg->TIM1_COMP = hpetFreq * 3 / 2; // set the desired one
+
+        hpetReg->TIM1_CONF |= HPET_TN_INT_ENB_CNF; // turn on that timer
     }
-    nmi_enable();
+    // nmi_enable();
 
     pic_irq_unmask(IRQ_CLOCK);
 }

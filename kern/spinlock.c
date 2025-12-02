@@ -59,6 +59,7 @@ spin_lock(struct spinlock *lk) {
     /* The xchg is atomic.
      * It also serializes, so that reads after acquire are not
      * reordered before it. */
+	// My ToDo: Can be easily changed to __atomic_load_n (TTAS)
     while (xchg(&lk->locked, 1)) asm volatile("pause");
 
         /* Record info about lock acquisition for debugging. */
