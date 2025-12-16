@@ -59,8 +59,32 @@ spin_lock(struct spinlock *lk) {
     /* The xchg is atomic.
      * It also serializes, so that reads after acquire are not
      * reordered before it. */
-	// My ToDo: Can be easily changed to __atomic_load_n (TTAS)
-    while (xchg(&lk->locked, 1)) asm volatile("pause");
+    // while (xchg(&lk->locked, 1)) asm volatile("pause");
+
+	/* TTAS (test-and-test-and-set) spinlock.
+     *
+     * First we spin on a cheap atomic load that can look for it in local core's cache.
+     * Only when it *appears* free do we hit the expensive xchg.
+     */
+    for (;;) {
+        // Spin while the lock appears to be held.
+        // RELAXED is enough here; we don't synchronize until we actually acquire.
+        while (__atomic_load_n(&lk->locked, __ATOMIC_RELAXED)) {
+            asm volatile("pause");
+        }
+
+        /* The xchg is atomic.
+         * It also serializes, so that reads after acquire are not
+         * reordered before it. This is our actual acquire step.
+         */
+        if (xchg(&lk->locked, 1) == 0) {
+            // We successfully acquired the lock.
+            break;
+        }
+
+        // If xchg failed, another CPU got the lock between our load and xchg.
+        // Go back to spinning on the load.
+    }
 
         /* Record info about lock acquisition for debugging. */
 #if trace_spinlock
