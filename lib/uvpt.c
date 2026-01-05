@@ -64,24 +64,92 @@ foreach_shared_region(int (*fun)(void *start, void *end, void *arg), void *arg) 
     int res = 0;
     // (void)fun, (void)arg;
 
-    for (uintptr_t addr = 0; addr < MAX_USER_ADDRESS; addr += PAGE_SIZE) {
-        if
-        (
-            !(uvpml4[VPML4(addr)] & PTE_P) || 
-            !(uvpdp[VPDP(addr)] & PTE_P) || 
-            !(uvpd[VPD(addr)] & PTE_P)
-        ) {
+    // Traversal through virtual addresses
+    // for (uintptr_t addr = 0; addr < MAX_USER_ADDRESS; addr += PAGE_SIZE) {
+    //     if
+    //     (
+    //         !(uvpml4[VPML4(addr)] & PTE_P) || 
+    //         !(uvpdp[VPDP(addr)] & PTE_P) || 
+    //         !(uvpd[VPD(addr)] & PTE_P)
+    //     ) {
+    //         continue;
+    //     }
+    //     if
+    //     (
+    //         (uvpt[VPT(addr)] & PTE_P) &&
+    //         (uvpt[VPT(addr)] & PTE_SHARE)
+    //     ) {
+    //         res = fun((void*) addr, (void *) (addr + PAGE_SIZE), arg);
+    //     }
+    //     if (res != 0) {
+    //         return res;
+    //     }
+    // }
+
+    // Traversal using index tables
+    for (size_t i4 = 0; i4 < PML4_ENTRY_COUNT; ++i4) {
+        if (!(uvpml4[i4] & PTE_P)) {
             continue;
         }
-        if
-        (
-            (uvpt[VPT(addr)] & PTE_P) &&
-            (uvpt[VPT(addr)] & PTE_SHARE)
-        ) {
-            res = fun((void*) addr, (void *) (addr + PAGE_SIZE), arg);
-        }
-        if (res != 0) {
-            return res;
+
+        for (size_t i3 = 0; i3 < PDP_ENTRY_COUNT; ++i3) {
+            const size_t idx_pdp =
+                (i4 << PDP_ENTRY_SHIFT) |
+                i3;
+            const pte_t pdpe = uvpdp[idx_pdp];
+            if (!(pdpe & PTE_P)) {
+                continue;
+            }
+
+            // skip 1GB huge page
+            if (pdpe & PTE_PS) {
+                continue;
+            }
+
+            for (size_t i2 = 0; i2 < PD_ENTRY_COUNT; ++i2) {
+                const size_t idx_pd =
+                    (i4 << (PDP_ENTRY_SHIFT + PD_ENTRY_SHIFT)) |
+                    (i3 << PD_ENTRY_SHIFT) |
+                    i2;
+                const pte_t pde = uvpd[idx_pd];
+                if (!(pde & PTE_P)) {
+                    continue;
+                }
+
+                // skip 2MB huge page
+                if (pde & PTE_PS) {
+                    continue;
+                }
+
+                for (size_t i1 = 0; i1 < PT_ENTRY_COUNT; ++i1) {
+                    const size_t idx_pt =
+                        (i4 << (PDP_ENTRY_SHIFT + PD_ENTRY_SHIFT + PT_ENTRY_SHIFT)) |
+                        (i3 << (PD_ENTRY_SHIFT + PT_ENTRY_SHIFT)) |
+                        (i2 << PT_ENTRY_SHIFT) |
+                        i1;
+                    const pte_t pte = uvpt[idx_pt];
+
+                    if (!(pte & PTE_P) || !(pte & PTE_SHARE)) {
+                        continue;
+                    }
+
+                    uintptr_t addr =
+                        ((uintptr_t) i4 << PML4_SHIFT) |
+                        ((uintptr_t) i3 << PDP_SHIFT)  |
+                        ((uintptr_t) i2 << PD_SHIFT)   |
+                        ((uintptr_t) i1 << PT_SHIFT);
+
+                    // from the condition in the original loop
+                    if (addr >= MAX_USER_ADDRESS) {
+                        continue;
+                    }
+
+                    const int res = fun((void*) addr, (void*) (addr + PAGE_SIZE), arg);
+                    if (res != 0) {
+                        return res;
+                    }
+                }
+            }
         }
     }
 
