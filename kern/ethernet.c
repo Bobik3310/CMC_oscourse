@@ -28,22 +28,30 @@ eth_send(struct eth_hdr *hdr, void *data, size_t len) {
 
 
 int
-eth_recv(void *data) {
+eth_recv(void *data, size_t data_length) {
     char buf[E1000_BUFFER_SIZE];
 
-    int size = e1000_receive(buf);
+    int size = e1000_receive(buf, sizeof(buf));
     if (size <= 0) {
         return size;
     }
 
+    if ((size_t) size < sizeof(struct eth_hdr)) {
+        return -E_INV_ETH_LEN; // frame too short
+    }
+
+
     // Get the Ethernet header
     struct eth_hdr hdr = {0};
-    memcpy((void *) &hdr, (void *) buf, sizeof(hdr));
+    memmove((void *) &hdr, (void *) buf, sizeof(hdr));
     // The only field that needs to endianness change
     hdr.eth_type = ntohs(hdr.eth_type);
 
     // Get the payload
-    memcpy(data, (void *) buf + sizeof(hdr), size - sizeof(hdr));
+    size_t payload_length = (size_t) size - sizeof(hdr);
+    size_t copied_length = MIN(payload_length, data_length);
+
+    memmove(data, (void *) buf + sizeof(hdr), copied_length); // MYTODO: should pass the header as well
 
     // Dispatch to higher level protocols
     switch (hdr.eth_type) {
@@ -54,6 +62,6 @@ eth_recv(void *data) {
         }
     }
 
-    return size;
+    return (int) copied_length;
 }
 

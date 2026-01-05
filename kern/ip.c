@@ -69,25 +69,53 @@ ip_send(struct ip_pkt *pkt, uint16_t length) {
 }
 
 int
-ip_recv(struct ip_pkt *pkt) {
-    int res = eth_recv((void *) pkt);
+ip_recv(void *buf, size_t buflen)
+{
+    int res = eth_recv(buf, buflen);
     if (res < 0) {
         return res;
     }
+    if ((size_t)res < sizeof(struct ip_hdr)) {
+        return -E_INV_IP_LEN;   // too small to even hold base header // MYTODO: Add special error for it
+    }
 
-    struct ip_hdr *hdr = &pkt->hdr;
-    if (hdr->ip_verlen != IP_VER_LEN) {
+    struct ip_hdr *hdr = (struct ip_hdr *)buf;
+
+    // ip_verlen: high 4 bits = version, low 4 bits = header length in 32-bit words
+    uint8_t ver = hdr->ip_verlen >> 4;
+    uint8_t ihl_words = hdr->ip_verlen & 0x0F;
+    size_t ihl_bytes = (size_t) ihl_words * 4;
+
+    if (ver != 4) {
         return -E_UNS_IP_VER;
     }
-
-    uint16_t checksum = hdr->ip_header_checksum;
-    hdr->ip_header_checksum = 0;
-    if (checksum != ip_checksum((void *) pkt, IP_HEADER_LEN)) {
-        return -E_INV_IP_CHECKSUM;
+    if (ihl_bytes < sizeof(struct ip_hdr)) {
+        return -E_INV_IP_HLEN;  // invalid header length // MYTODO: Add special error for it
+    }
+    if (ihl_bytes > (size_t)res) {
+        return -E_INV_IP_HLEN;  // header says longer than received bytes // MYTODO: Add special error for it
     }
 
+    // Total length is in network byte order
+    uint16_t total_len = ntohs(hdr->ip_total_length);
+
+    if (total_len < ihl_bytes) {
+        return -E_INV_IP_LEN; // MYTODO: Add special error for it
+    }
+    if (total_len > (uint16_t)res) {
+        return -E_INV_IP_LEN;   // packet not fully received / truncated // MYTODO: Add special error for it
+    }
+
+    // Checksum is over the IP header only (ihl_bytes)
+    uint16_t checksum = hdr->ip_header_checksum;
+    hdr->ip_header_checksum = 0;
+    if (checksum != ip_checksum((void *)hdr, ihl_bytes)) {
+        return -E_INV_IP_CHECKSUM;
+    }
+    hdr->ip_header_checksum = checksum; // optional: restore
+
     // Dispatch to higher level protocols
-    enum IPProto current_protocol = hdr->ip_protocol;
+    const enum IPProto current_protocol = hdr->ip_protocol;
     switch (current_protocol) {
         // case IP_PROTO_ICMP: {
         // }
@@ -100,5 +128,6 @@ ip_recv(struct ip_pkt *pkt) {
         }
     }
 
-    return 0;
+    return (int)total_len;
 }
+

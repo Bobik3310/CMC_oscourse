@@ -124,8 +124,9 @@ int e1000_transmit(const char *buf, unsigned len) {
     return 0;
 }
 
-// ITASK ToDo: Add buffer size as an argument!
-int e1000_receive(char *buffer) {
+// Returns full packet length; copies min(pkt_len, buflen) bytes.
+int
+e1000_receive(void *buffer, size_t buffer_length) {
     // Tail RX Descriptor Index
     uint32_t tail_rx = E1000_REG(E1000_RDT);
 
@@ -133,21 +134,23 @@ int e1000_receive(char *buffer) {
     if (!(rx_desc_table[tail_rx].status & E1000_RXD_STAT_DD)) {
         cprintf("E1000 receive queue is empty");
 
-        return -1;
+        return -1; // MYTODO: Add special error for it
     }
+
+    // Get packet length
+    size_t packet_length = rx_desc_table[tail_rx].length;
+    size_t copied_length = MIN(packet_length, buffer_length);
+
+    // Get data from buffer
+    memmove(buffer, rx_buf[tail_rx], copied_length);
 
     // Clear RX status Descriptor Done
     rx_desc_table[tail_rx].status &= ~E1000_RXD_STAT_DD;
-
-    // Get packet length
-    int len = rx_desc_table[tail_rx].length;
-
-    // Get data from buffer
-    memmove(buffer, rx_buf[tail_rx], len);
 
     // Point to next RX Descriptor
     tail_rx = (tail_rx + 1) % E1000_NU_DESC;
     E1000_REG(E1000_RDT) = tail_rx;
 
-    return len;
+    return (int) packet_length;
 }
+
