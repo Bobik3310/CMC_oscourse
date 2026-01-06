@@ -59,12 +59,14 @@ eth_recv(void *data) {
             if (ip_recv(data) < 0) {
                 return -1;
             }
+            break;
         }
         case ETH_TYPE_ARP: {
             cprintf("ARP RESOLVE\n");
             if (arp_resolve(data) < 0) {
                 return -1;
             }
+            break;
         }
         default: {
             // return -E_BAD_ETH_TYPE;

@@ -11,7 +11,7 @@ int
 icmp_echo_reply(struct ip_pkt* pkt) {
     // if (trace_packet_processing) 
     // {
-    //     cprintf("Processing ICMP packet\n");
+        cprintf("Processing ICMP packet\n");
     // }
     struct icmp_pkt icmp_packet;
     int size = ntohs(pkt->hdr.ip_total_length) - IP_HEADER_LEN;
@@ -30,7 +30,10 @@ icmp_echo_reply(struct ip_pkt* pkt) {
     hdr->checksum = ntohs(hdr->checksum) + 0x0800;
     hdr->checksum = htons(hdr->checksum);
 
+    cprintf("Not upal\n");
+
     struct ip_pkt result;
+    memset(&result, 0, sizeof(result));
     result.hdr.ip_protocol = IP_PROTO_ICMP;
     result.hdr.ip_source_address = htonl(MY_IP);
     result.hdr.ip_destination_address = htonl(HOST_IP);
