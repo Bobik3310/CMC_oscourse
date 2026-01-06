@@ -44,9 +44,10 @@ KERN_SRCFILES := kern/bootstrap.S \
 			kern/ethernet.c \
 			kern/ip.c \
 			kern/arp.c \
-			\
+			kern/tcp.c \
 			kern/udp.c \
-			kern/icmp.c
+			kern/icmp.c \
+			kern/http.c
 
 ifeq ($(CONFIG_KSPACE),y)
 KERN_SRCFILES += kern/alloc.c

@@ -92,7 +92,7 @@ tcp_send_ack(struct tcp_virtual_channel *vc, uint8_t flags) {
 
 int
 check_ack_seq(struct tcp_virtual_channel * vc, struct tcp_hdr ack_seq) {
-    //cprintf("Ack=%u Seq=%u <== Ack=%u Seq=%u\n", vc->ack_seq.ack_num, vc->ack_seq.seq_num, (uint32_t)JNTOHL(ack_seq.ack_num), (uint32_t)JNTOHL(ack_seq.seq_num));
+    //cprintf("Ack=%u Seq=%u <== Ack=%u Seq=%u\n", vc->ack_seq.ack_num, vc->ack_seq.seq_num, (uint32_t)ntohl(ack_seq.ack_num), (uint32_t)ntohl(ack_seq.seq_num));
 
     return ntohl(ack_seq.seq_num) == vc->ack_seq.ack_num &&
            ntohl(ack_seq.ack_num) == vc->ack_seq.seq_num;
@@ -264,3 +264,4 @@ tcp_recv(struct ip_pkt* pkt) {
     memcpy((void *)&tcp_pkt, (void *)pkt->data, ntohs(pkt->hdr.ip_total_length) - IP_HEADER_LEN);
     return tcp_process(&tcp_pkt, ntohl(pkt->hdr.ip_source_address), ntohs(pkt->hdr.ip_total_length) - IP_HEADER_LEN - TCP_HEADER_LEN);
 }
+

@@ -27,8 +27,10 @@ struct ip_pkt {
 };
 
 uint32_t ip2num(uint8_t ip[4]);
+void num2ip(int32_t num);
 int ip_send(struct ip_pkt *pkt, uint16_t length);
 int ip_recv(struct ip_pkt *pkt);
+uint16_t ip_checksum(void *vdata, size_t length);
 
 #define IP_VER      0x4
 #define IP_HLEN     (IP_HEADER_LEN / sizeof(uint32_t))
