@@ -7,7 +7,7 @@
 #include <kern/inet.h>
 #include <kern/ethernet.h>
 #include <kern/icmp.h>
-// #include <kern/udp.h>
+#include <kern/udp.h>
 
 uint32_t
 ip2num(uint8_t ip[4]) {
@@ -96,8 +96,9 @@ ip_recv(struct ip_pkt *pkt) {
         }
         // case IP_PROTO_TCP: {
         // }
-        // case IP_PROTO_UDP: {
-        // }
+        case IP_PROTO_UDP: {
+            return udp_recv(pkt);
+        }
         default: {
             return -E_BAD_IP_PROTO;
         }

@@ -16,7 +16,7 @@ udp_send(void *data, int length) {
     // }
 
     if (length < 0 || length > (int) UDP_DATA_LENGTH) {
-        cprintf("Check length in udp_send\n")
+        cprintf("Check length in udp_send\n");
         return -1;
     }
 
