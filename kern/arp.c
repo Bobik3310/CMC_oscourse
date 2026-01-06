@@ -101,15 +101,16 @@ arp_reply(struct arp_hdr *arp_header)
     // {
     //     cprintf("Sending ARP reply\n");
     // }
-    arp_header->opcode = ARP_REPLY;
-    memcpy(arp_header->target_mac, arp_header->source_mac, 6);
+
+    arp_header->hardware_type = htons(ARP_ETHERNET);
+    arp_header->protocol_type = htons(ARP_IPV4);
+    arp_header->opcode = htons(ARP_REPLY);
     arp_header->target_ip = arp_header->source_ip;
+
+    memcpy(arp_header->target_mac, arp_header->source_mac, 6);
     memcpy(arp_header->source_mac, (void *) &qemu_mac[0], 6);
     arp_header->source_ip = htonl(MY_IP);
-
-    arp_header->opcode = htons(arp_header->opcode);
-    arp_header->hardware_type = htons(arp_header->hardware_type);
-    arp_header->protocol_type = htons(arp_header->protocol_type);
+    // arp_header->source_ip = MY_IP;
 
     struct eth_hdr reply_header;
     memcpy(reply_header.eth_destination_mac, arp_header->target_mac, 6);
@@ -150,6 +151,26 @@ arp_resolve(void* data)
 
     struct arp_hdr *arp_header;
     arp_header = (struct arp_hdr *)data;
+
+
+
+    /* ===== ARP DEBUG PRINT ===== */
+    cprintf("\n[ARP] hrd=%u proto=0x%04x op=%u\n"
+            "      sender " IP_FMT " (" MAC_FMT ")\n"
+            "      target " IP_FMT " (" MAC_FMT ")\n",
+            ntohs(arp_header->hardware_type),
+            ntohs(arp_header->protocol_type),
+            ntohs(arp_header->opcode),
+            IP_ARG(arp_header->source_ip),
+            MAC_ARG(arp_header->source_mac),
+            IP_ARG(arp_header->target_ip),
+            MAC_ARG(arp_header->target_mac));
+    /* ========================== */
+
+
+
+
+
     arp_header->hardware_type = ntohs(arp_header->hardware_type);
     arp_header->protocol_type = ntohs(arp_header->protocol_type);
     arp_header->opcode = ntohs(arp_header->opcode);
@@ -175,7 +196,7 @@ arp_resolve(void* data)
         cprintf("ARP table is filled in");
     }
 
-    if (arp_header->target_ip != MY_IP) 
+    if (arp_header->target_ip != MY_IP)
     {
         cprintf("This is not for me!");
 
