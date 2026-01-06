@@ -31,6 +31,13 @@ sudo tcpdump -i any -n "udp and port 1234"
 sudo tcpdump -i any -n -vv "udp and port 1234"
 nc -u -l 1234
 python3 itask_utils/udp_check.py
+
+
+# -- To check UDP BETTER: --
+get_arp                 # JOS
+ping 192.168.123.2      # Host
+nc -u -l 1234           # Host
+udp_send                # JOS
 ```
 
 ...
