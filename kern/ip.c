@@ -18,9 +18,17 @@ ip2num(uint8_t ip[4]) {
         ((uint32_t) ip[3] << 0 );
 }
 
+void
+num2ip(int32_t num) {
+    cprintf(" %d.%d.%d.%d ", (num >> 24) & 0xFF,
+                             (num >> 16) & 0xFF,
+                             (num >> 8) & 0xFF,
+                             (num & 0xFF));
+}
+
 static uint16_t packet_id = 0;
 
-static uint16_t
+uint16_t
 ip_checksum(void *vdata, size_t length) {
     char *data = vdata;
     uint32_t acc = 0xffff;
@@ -94,11 +102,11 @@ ip_recv(struct ip_pkt *pkt) {
         case IP_PROTO_ICMP: {
             return icmp_echo_reply(pkt);
         }
-        // case IP_PROTO_TCP: {
-        // }
-        case IP_PROTO_UDP: {
-            return udp_recv(pkt);
+        case IP_PROTO_TCP: {
+            return tcp_recv(pkt);
         }
+        // case IP_PROTO_UDP: {
+        // }
         default: {
             return -E_BAD_IP_PROTO;
         }
