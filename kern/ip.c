@@ -105,8 +105,9 @@ ip_recv(struct ip_pkt *pkt) {
         case IP_PROTO_TCP: {
             return tcp_recv(pkt);
         }
-        // case IP_PROTO_UDP: {
-        // }
+        case IP_PROTO_UDP: {
+            return udp_recv(pkt);
+        }
         default: {
             return -E_BAD_IP_PROTO;
         }
