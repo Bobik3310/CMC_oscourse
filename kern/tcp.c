@@ -29,7 +29,7 @@ tcp_init_vc() {
 
 int
 tcp_send(struct tcp_virtual_channel* channel, struct tcp_pkt* pkt, size_t length) {
-    if (trace_packet_processing) cprintf("Sending TCP packet\n");
+    // if (trace_packet_processing) cprintf("Sending TCP packet\n");
 
     pkt->hdr.seq_num = htonl(channel->ack_seq.seq_num);
     pkt->hdr.ack_num = htonl(channel->ack_seq.ack_num);
@@ -100,7 +100,7 @@ check_ack_seq(struct tcp_virtual_channel * vc, struct tcp_hdr ack_seq) {
 
 int
 tcp_process(struct tcp_pkt *pkt, uint32_t src_ip, uint16_t tcp_data_len) {
-    if (trace_packet_processing) cprintf("Processing TCP packet\n");
+    // if (trace_packet_processing) cprintf("Processing TCP packet\n");
     struct tcp_virtual_channel * vc = match_tcp_vc(pkt);
     if (vc == NULL) {
         cprintf("No TCP VC match for packet\n");

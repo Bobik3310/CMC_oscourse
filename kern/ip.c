@@ -8,6 +8,7 @@
 #include <kern/ethernet.h>
 #include <kern/icmp.h>
 #include <kern/udp.h>
+#include <kern/tcp.h>
 
 uint32_t
 ip2num(uint8_t ip[4]) {
