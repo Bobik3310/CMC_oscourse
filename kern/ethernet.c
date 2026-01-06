@@ -22,11 +22,12 @@ eth_send(struct eth_hdr *hdr, void *data, size_t len) {
     // memcpy((void*) hdr->eth_destination_mac, hard_code_destination_mac, sizeof(hdr->eth_destination_mac));
     if (hdr->eth_type == htons(ETH_TYPE_IP)) {
         struct ip_hdr *ip_header = &(((struct ip_pkt *) data)->hdr);
+        cprintf("MAC BY IP%s\n", get_mac_by_ip(ip_header->ip_destination_address));
         memcpy(hdr->eth_destination_mac, get_mac_by_ip(ip_header->ip_destination_address), 6);
     }
 
     char buf[ETH_FRAME_MAX_LEN];
-    hdr->eth_type = htons(hdr->eth_type);
+    // hdr->eth_type = htons(hdr->eth_type);
     memcpy((void *) buf, (void *) hdr, sizeof(*hdr));
     memcpy((void *) buf + sizeof(*hdr), data, len);
 
@@ -60,6 +61,7 @@ eth_recv(void *data) {
             }
         }
         case ETH_TYPE_ARP: {
+            cprintf("ARP RESOLVE\n");
             if (arp_resolve(data) < 0) {
                 return -1;
             }

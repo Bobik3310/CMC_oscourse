@@ -7,7 +7,6 @@
 #include <inc/string.h>
 #include <inc/error.h>
 
-/*
 #define IP_FMT "%u.%u.%u.%u"
 #define IP_ARG(ip) \
     ((uint8_t *)&(ip))[0], \
@@ -18,7 +17,6 @@
 #define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
 #define MAC_ARG(mac) \
     (mac)[0], (mac)[1], (mac)[2], (mac)[3], (mac)[4], (mac)[5]
-*/
 
 static struct arp_cache_table arp_table[ARP_TABLE_MAX_SIZE];
 
@@ -98,6 +96,7 @@ update_arp_table(struct arp_hdr *arp_header)
 int
 arp_reply(struct arp_hdr *arp_header) 
 {
+    cprintf("ARP REPLY\n");
     // if (trace_packet_processing) 
     // {
     //     cprintf("Sending ARP reply\n");
@@ -116,6 +115,20 @@ arp_reply(struct arp_hdr *arp_header)
     memcpy(reply_header.eth_destination_mac, arp_header->target_mac, 6);
     reply_header.eth_type = htons(ETH_TYPE_ARP);
     memcpy(reply_header.eth_destination_mac, get_mac_by_ip(arp_header->target_ip), 6);
+cprintf("\n");
+cprintf("\n");
+cprintf("ARP REPLY PACKET\n");
+cprintf("  hw_type   = 0x%04x\n", ntohs(arp_header->hardware_type));
+cprintf("  proto     = 0x%04x\n", ntohs(arp_header->protocol_type));
+cprintf("  opcode    = %u\n", ntohs(arp_header->opcode));
+
+cprintf("  sender MAC = " MAC_FMT "\n", MAC_ARG(arp_header->source_mac));
+cprintf("  sender IP  = " IP_FMT "\n", IP_ARG(arp_header->source_ip));
+
+cprintf("  target MAC = " MAC_FMT "\n", MAC_ARG(arp_header->target_mac));
+cprintf("  target IP  = " IP_FMT "\n", IP_ARG(arp_header->target_ip));
+cprintf("\n");
+cprintf("\n");
     int status = eth_send(&reply_header, arp_header, sizeof(struct arp_hdr));
     if (status < 0) 
     {
@@ -146,7 +159,7 @@ arp_resolve(void* data)
     {
         cprintf("Error! Only ethernet is supporting.");
 
-        return -E_UNS_ARP_HRDWR_TYPE;
+        // return -E_UNS_ARP_HRDWR_TYPE;
     }
 
     if (arp_header->protocol_type != ARP_IPV4) 
