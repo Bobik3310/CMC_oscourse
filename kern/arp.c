@@ -42,7 +42,8 @@ initialize_arp_table()
     struct arp_cache_table *entry;
     entry = &arp_table[ARP_TABLE_MAX_SIZE - 1]; // it shall be just default MAC
     entry->source_ip = htonl(HOST_IP);
-    uint8_t mac[6] = {0xca, 0xfe, 0x33, 0x53, 0x82, 0x87};
+    // uint8_t mac[6] = {0xca, 0xfe, 0x33, 0x53, 0x82, 0x87};
+    uint8_t mac[6] = { 0xb2, 0x00, 0x1c, 0x4d, 0x7d, 0x8d }; // MYTODO: This is a HACK to allow UDP without ARP
     memcpy(entry->source_mac, mac, 6);
     entry->state = STATIC_STATE;
     for (int i = 1; i < ARP_TABLE_MAX_SIZE; i++) 

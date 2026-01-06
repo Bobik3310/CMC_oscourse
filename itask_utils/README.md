@@ -17,8 +17,20 @@ wireshark dump.dat
 # To start ARP + test ICMP
 ping 192.168.123.2
 
-# To check UDP:
+# -- To check UDP: --
+
+# send from host
 echo "hello jos" | nc -u "192.168.123.2" 8081
+# receive on host
+eth_recv
+
+# send from JOS
+udp_send
+# receive on host
+sudo tcpdump -i any -n "udp and port 1234"
+sudo tcpdump -i any -n -vv "udp and port 1234"
+nc -u -l 1234
+python3 itask_utils/udp_check.py
 ```
 
 ...
