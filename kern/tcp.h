@@ -71,7 +71,6 @@ struct tcp_virtual_channel {
 };
 
 #define TCP_VC_NUM 64
-#define trace_packet_processing 1
 
 void tcp_init_vc();
 int tcp_send(struct tcp_virtual_channel* channel, struct tcp_pkt* pkt, size_t length);
