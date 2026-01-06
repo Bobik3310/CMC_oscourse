@@ -10,6 +10,34 @@ chmod +x itask_utils/init_host.sh
 ./itask_utils/init_host.sh
 
 make clean && make qemu # -j 8
+
+# To inspect packets (without sudo):
+wireshark dump.dat
+
+# To start ARP + test ICMP
+ping 192.168.123.2
+
+# -- To check UDP: --
+
+# send from host
+echo "hello jos" | nc -u "192.168.123.2" 8081
+# receive on host
+eth_recv
+
+# send from JOS
+udp_send
+# receive on host
+sudo tcpdump -i any -n "udp and port 1234"
+sudo tcpdump -i any -n -vv "udp and port 1234"
+nc -u -l 1234
+python3 itask_utils/udp_check.py
+
+
+# -- To check UDP BETTER: --
+get_arp                 # JOS
+ping 192.168.123.2      # Host
+nc -u -l 1234           # Host
+udp_send                # JOS
 ```
 
 ...

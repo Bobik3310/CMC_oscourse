@@ -37,18 +37,12 @@ get_mac_by_ip(uint32_t ip)
 }
 
 void
-initialize_arp_table() 
+initialize_arp_table(void)
 {
-    struct arp_cache_table *entry;
-    entry = &arp_table[ARP_TABLE_MAX_SIZE - 1]; // it shall be just default MAC
-    entry->source_ip = htonl(HOST_IP);
-    uint8_t mac[6] = {0xca, 0xfe, 0x33, 0x53, 0x82, 0x87};
-    memcpy(entry->source_mac, mac, 6);
-    entry->state = STATIC_STATE;
-    for (int i = 1; i < ARP_TABLE_MAX_SIZE; i++) 
-    {
-        entry = &arp_table[i];
-        entry->state = FREE_STATE;
+    for (int i = 0; i < ARP_TABLE_MAX_SIZE; i++) {
+        arp_table[i].state = FREE_STATE;
+        arp_table[i].source_ip = 0;
+        memset(arp_table[i].source_mac, 0, 6);
     }
 }
 

@@ -21,6 +21,9 @@
 // ITASK: Your code here
 #include <kern/e1000.h>
 #include <kern/ethernet.h>
+#include <kern/udp.h>
+#include <kern/arp.h>
+#include <kern/inet.h> // for hton
 
 #define WHITESPACE "\t\r\n "
 #define MAXARGS    16
@@ -42,6 +45,8 @@ int mon_virt(int argc, char **argv, struct Trapframe *tf);
 // ITASK: Your code here
 int mon_e1000_recv(int argc, char **argv, struct Trapframe *tf);
 int mon_eth_recv(int argc, char **argv, struct Trapframe *tf);
+int mon_udp_send(int argc, char **argv, struct Trapframe *tf);
+int mon_get_arp(int argc, char **argv, struct Trapframe *tf);
 
 struct Command {
     const char *name;
@@ -67,6 +72,8 @@ static struct Command commands[] = {
         {"e1000_recv", "Test e1000 receive", mon_e1000_recv},
         // {"e1000_tran", "Test e1000 transmit", mon_e1000_tran},
         {"eth_recv", "Test Ethernet receive", mon_eth_recv},
+        {"udp_send", "Test UDP send", mon_udp_send},
+        {"get_arp", "Get ARP entry for HOST_IP", mon_get_arp},
 };
 #define NCOMMANDS (sizeof(commands) / sizeof(commands[0]))
 
@@ -286,6 +293,49 @@ mon_eth_recv(int argc, char **argv, struct Trapframe *tf) {
             }
         } else {
             cprintf("received status: %s%s\n", (len >= 0) ? "OK" : "ERROR", (len == 0) ? " EMPTY" : " ");
+        }
+        cprintf("\n");
+    }
+
+    return 0;
+}
+
+int
+mon_udp_send(int argc, char **argv, struct Trapframe *tf) {
+    char message_to_send[] = "hello host from josik ^_^";
+    return udp_send
+    (
+        &message_to_send[0],
+        sizeof(message_to_send) / sizeof(message_to_send[0])
+    );
+}
+
+int
+mon_get_arp(int argc, char **argv, struct Trapframe *tf) {
+    const uint32_t host_ip_key = htonl(HOST_IP); // match table's current byte order
+
+    while (true) {
+        // Stop once ARP entry exists
+        if (get_mac_by_ip(host_ip_key) != NULL) {
+            cprintf("ARP entry for HOST_IP found. Stopping.\n");
+            break;
+        }
+
+        e1000_listen();
+
+        char buf[1000];
+        int len = eth_recv(buf);
+        if (len >= 0) {
+            cprintf("received len: %d\n", len);
+            if (len > 0) {
+                cprintf("received packet: ");
+                for (int i = 0; i < len; i++) {
+                    cprintf("%02x ", (uint8_t)buf[i]);
+                }
+                cprintf("\n");
+            }
+        } else {
+            cprintf("received status: ERROR\n");
         }
         cprintf("\n");
     }

@@ -45,7 +45,7 @@ KERN_SRCFILES := kern/bootstrap.S \
 			kern/ip.c \
 			kern/arp.c \
 			\
-			\
+			kern/udp.c \
 			kern/icmp.c
 
 ifeq ($(CONFIG_KSPACE),y)
